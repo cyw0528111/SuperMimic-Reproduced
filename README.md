@@ -33,6 +33,8 @@
 | [docs/REPRODUCTION_PLAN.md](docs/REPRODUCTION_PLAN.md) | 复现计划：目标、环境、设计决策 D1–D20、repo 骨架、分阶段步骤、测试、预算、风险 |
 | [docs/REVIEW_LOG.md](docs/REVIEW_LOG.md) | 计划的自审与两轮对抗审查记录 |
 | [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md) | 实验日志：每个实验的配置、曲线、评测、偏离计划的决定、踩坑记录 |
+| [docs/WIN_8G_TRAINING.md](docs/WIN_8G_TRAINING.md) | Windows / 8GB 显存训练方案与实测实录（RTX 5060 Laptop，含 7 条 Windows 专属坑清单） |
+| [docs/talk/](docs/talk) | 讲解课件 PPT、30 分钟视频完整口播台词、TTS 分句与分镜规划（见下方"讲解资料"） |
 | 论文原文 | [arXiv:2610.28480](https://arxiv.org/abs/2610.28480)（不随仓库分发 PDF） |
 
 ## 代码结构
@@ -71,6 +73,7 @@ env -u PYTHONPATH uv run pytest tests -q
 ## 数据
 
 - **LAFAN1**（40 条 G1 重定向 CSV，HF `lvhaidong/LAFAN1_Retargeting_Dataset`）→ `data/npz/lafan1/`，2.451 h（论文 2.45 h）。
+- 国内下载备选：ModelScope `unitreerobotics/LAFAN1_Retargeting_Dataset`（宇树官方镜像，内容与 HF 版逐位一致），脚本 `download_lafan_ms.py`（需 `pip install modelscope`）。
 - **BONES-SEED**（HF `bones-studio/seed`，`g1.tar.gz`，142,220 条 120 fps CSV，厘米/角度）→ 50 Hz npz → 名字过滤 + 可行性过滤 → **129,943 条 / 263.75 h**（论文 129,514 / 264.56）→ 紧凑 fp16 库 `data/library/bones_seed_compact.pt`（6.7 GB，常驻显存，目标特征与刚体状态在线 FK）。
 
 ```bash
@@ -100,6 +103,45 @@ env -u PYTHONPATH uv run torchrun --nproc_per_node 4 -m supermimic.scripts.train
 ```
 
 默认超参按论文 Table A.5/A.6：4096 环境、H=32、UTD 0.4、γ=0.99、critic 5 epoch × 4 minibatch、WM 每次更新 10 批。日志为 TensorBoard（`logs/<run>/tb`），每 `checkpoint-interval` 迭代存 `ckpt_XXXXXXX.pt`。
+
+## Windows / 8GB 显存训练（实测）
+
+整套管线已在 **RTX 5060 Laptop 8GB / Windows 11** 上完整跑通，方案与逐步实录见 [docs/WIN_8G_TRAINING.md](docs/WIN_8G_TRAINING.md)。方法本身网络很小（世界模型 8.82M + 策略 8.91M + critic 0.237M ≈ 18M 参数），8GB 显存绰绰有余，显存大头是并行仿真与 BPTT 激活：
+
+| 配置 | 值 | 说明 |
+|---|---|---|
+| `--env.num-envs` | 512 | 仿真阶段显存 1.35 GB |
+| `--policy-trainer.batch-size` | 512 | |
+| `--policy-trainer.horizon` | 16 | 论文：配 critic 时 16 步 ≈ 无 critic 的 32 步 |
+| `--env.anchor-obs` | 开 | 锚点相对观测（与 e3 同口径） |
+| torch.compile | 关 | Windows 缺 MSVC/triton 编译链，纯 eager |
+| 实测吞吐 | 0.6–0.8 it/s | 峰值显存 2.64 GB / 8 GB（32%） |
+
+```bash
+uv run python -m supermimic.scripts.train --run-name lafan_8g --data.npz-dir data/npz/lafan1 \
+  --env.num-envs 512 --env.anchor-obs --policy-trainer.batch-size 512 \
+  --policy-trainer.horizon 16 --schedule.max-hours 36 --schedule.checkpoint-interval 2000
+```
+
+Windows 专属注意（完整坑清单见 [docs/WIN_8G_TRAINING.md](docs/WIN_8G_TRAINING.md) §5）：
+
+- 必设 `PYTORCH_CUDA_ALLOC_CONF="garbage_collection_threshold:0.8,max_split_size_mb:512"`（WDDM 假 OOM）；
+- 用 `python -m supermimic.scripts.train` 代替 `sm-train`（uv console wrapper 在 Windows 上会被安全策略 SIGTERM）；
+- 训练期间防系统睡眠：`train_wrapper_8g.py` 进程内 `SetThreadExecutionState`，且勿合盖（合盖仍会睡）；
+- LAFAN1 国内走 ModelScope（见"数据"节），hf-mirror 不稳定时用它，5 秒下完 40 clips。
+
+`logs/e009_pretrained/ckpt_0040000.pt`（预训练起步权重，221 MB）超 Gitee/GitHub 单文件 100 MB 限制不入库；自行训练数小时即可得到同量级 checkpoint。
+
+## 讲解资料（课件与视频台词）
+
+| 文件 | 内容 |
+|---|---|
+| [docs/talk/SuperMimic透彻讲解.pptx](docs/talk/SuperMimic透彻讲解.pptx) | 30 分钟视频配套课件：从任务定义、可微世界模型到策略训练与复现全过程的透彻拆解 |
+| [docs/talk/台词_v1.md](docs/talk/台词_v1.md) | 视频完整口播台词稿（82 段，约 30 分钟） |
+| [docs/talk/tts_chunks.json](docs/talk/tts_chunks.json) | 实际送 CosyVoice3 合成语音的最终分句（含 "SuperMimic→Super Mimic"、缩写拆字母等转写规则） |
+| [docs/talk/分镜规划.md](docs/talk/分镜规划.md) | 分镜方案：8 类素材（仿真渲染 / 代码卡 / 真实曲线动画 / 终端卡 / 大数字卡等）逐段对应 |
+
+> 成片 mp4（352 MB）超单文件 100 MB 限制，未随仓库分发；画面铁律与素材构成见分镜规划。
 
 ## 评测与可视化
 
