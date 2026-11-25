@@ -33,8 +33,9 @@ class PolicyTrainerCfg:
     critic_minibatches: int = 4
     use_critic: bool = True
     obs_noise: bool = True
-    compile: str | None = "default"
-    anchor_obs: bool = False  # None | "default" | "reduce-overhead" | "max-autotune-no-cudagraphs"
+    # [8G 补丁] 原为 "default"。同上：Windows 纯 eager，且 tyro 传 `none` 会当成字符串。
+    compile: str | None = None
+    anchor_obs: bool = False  # 锚点相对观测（BeyondMimic 口径，8G 方案实测必需）
 
 
 class PolicyTrainer:

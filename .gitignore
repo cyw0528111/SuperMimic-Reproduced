@@ -13,3 +13,11 @@ wandb/
 .pytest_cache/
 .ruff_cache/
 experiments/**/outputs/
+
+# 本机运行产物（不入库）
+snapshots/
+.bin/
+*.log
+supervisor.log
+sync.log
+.workbuddy/

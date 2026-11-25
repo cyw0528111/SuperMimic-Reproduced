@@ -21,7 +21,9 @@ class WMTrainerCfg:
     lr: float = 2e-4
     grad_clip: float = 1.0
     weight_decay: float = 0.0
-    compile: str | None = "default"
+    # [8G 补丁] 原为 "default"。Windows 无 MSVC/triton 编译链，且 tyro 会把 `none` 当字符串
+    # 传给 torch.compile 而报错，故默认值直接设为 None（纯 eager，可还原为 "default"）。
+    compile: str | None = None
 
 
 def reference_at(lib: MotionLibrary, frame: torch.Tensor) -> ReferenceFrame:
