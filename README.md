@@ -162,18 +162,3 @@ Windows 侧的其余坑（uv 拉 github 断流、`tyro` 的 `list[str]` 只认�
 - 仿真框架：mjlab、MuJoCo Warp
 
 本仓库在以上工作的基础上完成：8 GB 硬件上的端到端复现与 12.65 万迭代训练、崩溃自愈守护与快照工具、Windows 环境四处阻塞的解决、40 条全量评测与发散事故分析。代码版权与许可见 `LICENSE` 与 `LICENSES/`。
-
----
-
-## 注意：不要把这些推上 GitHub
-
-`.gitignore` 已排除，但如果你重新建仓库请确认：
-
-| 路径 | 大小 | 原因 |
-|---|---|---|
-| `logs/` | 数个 GB | 存档每个 215 MB，GitHub 单文件上限 100 MB |
-| `data/` | 87 MB + npz | 动作数据，版权归原数据集 |
-| `snapshots/` | 数百 MB | 录像与轨迹 |
-| `.venv/`、`.bin/` | 数 GB | 环境与 ffmpeg 二进制 |
-
-训练好的策略（`ckpt_*.pt`）建议放 Release 或 Hugging Face，不要提交到 git。
