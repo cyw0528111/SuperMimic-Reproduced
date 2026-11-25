@@ -5,9 +5,9 @@
 
 `Windows 11` · `RTX 4060 Laptop 8GB` · `mjlab` · `MuJoCo Warp` · `PyTorch 2.14` · `LAFAN1 ×40`
 
-![walk comparison](docs/assets/walk_compare.gif)
+![G1 whole-body motion tracking](docs/assets/showcase.gif)
 
-*实体机器人 = 策略，半透明蓝色 = 参考动作。这条 `walk4_subject1` 的归一化回报是 0.949。*
+*一个策略同时跟踪走、跑、跳、舞蹈四类动作（`walk4_subject1` / `run1_subject5` / `jumps1_subject1` / `dance1_subject3`，各取 3 秒）。[下载高清 MP4](docs/assets/showcase.mp4)*
 
 <details>
 <summary>English</summary>
@@ -34,6 +34,10 @@ LAFAN1 40 条动作，每条从首帧起播一次、确定性策略、无观测/
 
 **强项**：行走类全线 0.90 以上，最高 `walk4_subject1` **0.949**（超过上游 40 条均值）。
 **弱项**：摔倒起身 `fallAndGetUp` 一族全部低于 0.80，最差 **0.667**——想象时域从 32 砍到 16 后，落地多点接触在 0.32 秒内无法体现。
+
+![policy vs reference](docs/assets/showcase_ghost.gif)
+
+*同上四段，叠加参考动作对比：实体机器人 = 策略，半透明蓝色 = 参考动作。蓝色几乎被实体完全盖住，说明逐帧姿态误差很小；偶尔露出的蓝色边缘就是那零点几秒的滞后。*
 
 完整逐条成绩、训练曲线、失败分析见 **[docs/REPORT_8G.md](docs/REPORT_8G.md)**。
 
